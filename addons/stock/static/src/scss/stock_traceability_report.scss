@@ -37,9 +37,10 @@
         .o_report_line_header {
             text-align: left;
             padding-left: 10px;
+            border-left-style: hidden;
+            border-right-style: hidden;
         }
         .o_report_header {
-            border-top-style: solid;
             border-top-style: groove;
             border-bottom-style: groove;
             border-width: 2px;
@@ -82,5 +83,8 @@
         > td > span:last-child {
             margin-left: 50px;
         }
+    }
+    .o_report_line_body {
+        @include o-stock-reports-lines($border-width: 0px, $border-top-style: solid, $border-bottom-style: solid);
     }
 }
