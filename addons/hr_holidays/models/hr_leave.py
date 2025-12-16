@@ -82,7 +82,6 @@ class HolidaysRequest(models.Model):
             lt = self.env['hr.leave.type'].search(['|', ('requires_allocation', '=', 'no'), ('has_valid_allocation', '=', True)], limit=1, order='sequence')
             if lt:
                 defaults['holiday_status_id'] = lt.id
-                defaults['request_unit_custom'] = False
 
         if 'request_date_from' in fields_list and 'request_date_from' not in defaults:
             defaults['request_date_from'] = fields.Date.today()
