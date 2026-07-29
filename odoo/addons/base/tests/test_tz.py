@@ -1,9 +1,10 @@
 import datetime
 import logging
 import pytz
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from odoo.tests.common import TransactionCase
+from odoo.tools import date_utils
 from odoo._monkeypatches.pytz import _tz_mapping
 
 _logger = logging.getLogger(__name__)
@@ -65,3 +66,39 @@ class TestTZ(TransactionCase):
         expected_offset = datetime.datetime.now(pytz.timezone('America/New_York')).strftime('%z')
         # offest will be -0400 in summer, -0500 in winter
         self.assertEqual(partner.tz_offset, expected_offset, "We don't expect pytz.timezone to fail if the timezone diseapeared when chaging os version")
+
+    def test_canonical_timezone(self):
+        self.assertEqual(date_utils.canonical_timezone('Asia/Saigon'), 'Asia/Ho_Chi_Minh')
+        # values without a known equivalent are returned unchanged
+        self.assertEqual(date_utils.canonical_timezone('Europe/Brussels'), 'Europe/Brussels')
+        self.assertEqual(date_utils.canonical_timezone(False), False)
+        # a mapping is not applied when the target is missing from the system
+        with patch.dict(_tz_mapping, {'Old/Zone': 'Nowhere/Unknown'}):
+            self.assertEqual(date_utils.canonical_timezone('Old/Zone'), 'Old/Zone')
+
+    def test_read_group_deprecated_timezone(self):
+        # the sql guard used to skip the conversion for a deprecated timezone,
+        # grouping in UTC instead of the timezone of the user
+        self.env['res.partner'].create({'name': 'tz test'})
+        domain = [('name', '=', 'tz test')]
+        self.assertEqual(
+            self.env['res.partner'].with_context(tz='Asia/Saigon')._read_group(domain, ['create_date:day']),
+            self.env['res.partner'].with_context(tz='Asia/Ho_Chi_Minh')._read_group(domain, ['create_date:day']),
+        )
+
+    def test_login_deprecated_timezone(self):
+        # browsers report the CLDR name, which is deprecated for some timezones
+        user = self.env['res.users'].create({
+            'name': 'tz test',
+            'login': 'tz_test',
+            'password': 'tz_test',
+            'tz': False,
+        })
+        request = MagicMock(cookies={'tz': 'Asia/Saigon'})
+        with patch('odoo.addons.base.models.res_users.request', request):
+            self.env['res.users']._login(
+                {'login': 'tz_test', 'password': 'tz_test', 'type': 'password'},
+                {'interactive': False},
+            )
+        user.invalidate_recordset()
+        self.assertEqual(user.tz, 'Asia/Ho_Chi_Minh')
