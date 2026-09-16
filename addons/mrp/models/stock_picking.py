@@ -72,6 +72,8 @@ class StockPickingType(models.Model):
         mrp_picking_types = self.filtered(lambda picking: picking.code == 'mrp_operation')
         remaining = (self - mrp_picking_types)
         remaining.count_mo_waiting = remaining.count_mo_todo = remaining.count_mo_late = False
+        if not mrp_picking_types:
+            return
         domains = {
             'count_mo_waiting': [('reservation_state', '=', 'waiting')],
             'count_mo_todo': ['|', ('state', 'in', ('confirmed', 'draft', 'progress', 'to_close')), ('is_planned', '=', True)],
